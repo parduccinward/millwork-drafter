@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+"""
+Millwork Drafter - Main CLI Entry Point
+
+Parametric, CSV-driven pipeline for generating vector PDFs of millwork shop drawings.
+Based on memory-banks specifications with Anti-Over-Engineering guardrails.
+"""
+
+import sys
+import click
+from pathlib import Path
+from typing import Optional
+
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent / "src"))
+
+from src.core.config import ConfigLoader, MillworkConfig
+
+
+@click.command()
+@click.option(
+    "--input", "-i",
+    type=click.Path(exists=True, path_type=Path),
+    required=True,
+    help="Path to input CSV file containing room specifications"
+)
+@click.option(
+    "--config", "-c", 
+    type=click.Path(exists=True, path_type=Path),
+    default="config/default.yaml",
+    help="Path to YAML configuration file (default: config/default.yaml)"
+)
+@click.option(
+    "--output", "-o",
+    type=click.Path(path_type=Path),
+    default="output/pdfs",
+    help="Output directory for generated PDFs (default: output/pdfs)"
+)
+@click.option(
+    "--strict",
+    is_flag=True,
+    help="Treat warnings as errors and fail the batch"
+)
+@click.option(
+    "--units",
+    type=click.Choice(["in", "mm"], case_sensitive=False),
+    default="in",
+    help="Display units for dimensions (default: in)"
+)
+@click.option(
+    "--verbose", "-v",
+    is_flag=True,
+    help="Enable verbose output"
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Validate inputs without generating PDFs"
+)
+@click.version_option(version="0.1.0", prog_name="Millwork Drafter")
+def main(
+    input: Path,
+    config: Path,
+    output: Path,
+    strict: bool,
+    units: str,
+    verbose: bool,
+    dry_run: bool
+) -> None:
+    """
+    Generate millwork shop drawing PDFs from CSV specifications.
+    
+    This tool implements a parametric, CSV-driven pipeline that generates
+    vector PDFs for millwork shop drawings following professional standards
+    and ADA compliance requirements.
+    
+    Examples:
+    
+        # Generate PDFs with default configuration
+        python generate.py --input input/rooms.csv
+        
+        # Use custom config and strict validation
+        python generate.py -i input/rooms.csv -c config/project_alpha.yaml --strict
+        
+        # Dry run to validate inputs only
+        python generate.py -i input/rooms.csv --dry-run --verbose
+    """
+    
+    try:
+        # Set up output directories
+        output.mkdir(parents=True, exist_ok=True)
+        (output.parent / "logs").mkdir(parents=True, exist_ok=True)
+        
+        if verbose:
+            click.echo(f"Input CSV: {input}")
+            click.echo(f"Configuration: {config}")
+            click.echo(f"Output directory: {output}")
+            click.echo(f"Units: {units}")
+            click.echo(f"Strict mode: {strict}")
+            click.echo(f"Dry run: {dry_run}")
+        
+        # Load configuration
+        if verbose:
+            click.echo("Loading configuration...")
+        
+        config_loader = ConfigLoader()
+        try:
+            config_dict = config_loader.load_config(str(config))
+            config_hash = config_loader.get_config_hash(config_dict)
+            
+            if verbose:
+                click.echo(f"Configuration loaded successfully (hash: {config_hash[:8]}...)")
+        
+        except Exception as e:
+            click.echo(f"Error: Failed to load configuration: {e}", err=True)
+            sys.exit(2)
+        
+        # Validate CSV file exists and is readable
+        if not input.exists():
+            click.echo(f"Error: Input file not found: {input}", err=True)
+            sys.exit(2)
+        
+        if not input.suffix.lower() == '.csv':
+            click.echo(f"Warning: Input file does not have .csv extension: {input}", err=True)
+            if strict:
+                sys.exit(1)
+        
+        if verbose:
+            click.echo(f"Input CSV validated: {input}")
+        
+        if dry_run:
+            click.echo("Dry run mode: Configuration and input validation completed successfully.")
+            click.echo("No PDFs were generated.")
+            return
+        
+        # TODO: Implement the actual pipeline
+        # This will be implemented in Phase 2-4
+        click.echo("Pipeline implementation coming in Phase 2-4...")
+        click.echo("For now, validation completed successfully.")
+        
+        # Placeholder success message
+        click.echo(f"✓ Configuration loaded and validated")
+        click.echo(f"✓ Input CSV validated: {input}")
+        click.echo(f"✓ Output directory prepared: {output}")
+        click.echo("Ready for pipeline implementation!")
+        
+    except KeyboardInterrupt:
+        click.echo("\nOperation cancelled by user.", err=True)
+        sys.exit(130)
+    
+    except Exception as e:
+        click.echo(f"Unexpected error: {e}", err=True)
+        if verbose:
+            import traceback
+            traceback.print_exc()
+        sys.exit(2)
+
+
+@click.group()
+def cli():
+    """Millwork Drafter command line tools."""
+    pass
+
+
+@cli.command()
+@click.option(
+    "--output", "-o",
+    type=click.Path(path_type=Path),
+    default="config/default.yaml",
+    help="Output path for the configuration file"
+)
+def init_config(output: Path):
+    """Initialize a new configuration file with defaults."""
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        
+        if output.exists():
+            if not click.confirm(f"Configuration file {output} already exists. Overwrite?"):
+                click.echo("Operation cancelled.")
+                return
+        
+        # Create default configuration
+        default_config = MillworkConfig()
+        
+        from src.core.config import save_config_to_yaml
+        save_config_to_yaml(default_config, str(output))
+        
+        click.echo(f"✓ Default configuration created: {output}")
+        click.echo("Edit this file to customize settings for your project.")
+        
+    except Exception as e:
+        click.echo(f"Error creating configuration: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("config_path", type=click.Path(exists=True, path_type=Path))
+def validate_config(config_path: Path):
+    """Validate a configuration file."""
+    try:
+        config_loader = ConfigLoader()
+        config_dict = config_loader.load_config(str(config_path))
+        config_hash = config_loader.get_config_hash(config_dict)
+        
+        click.echo(f"✓ Configuration is valid: {config_path}")
+        click.echo(f"Configuration hash: {config_hash}")
+        
+    except Exception as e:
+        click.echo(f"✗ Configuration validation failed: {e}", err=True)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    # Support both direct execution and CLI group
+    if len(sys.argv) == 1:
+        # No arguments - show help
+        main(["--help"])
+    elif sys.argv[1] in ["init-config", "validate-config"]:
+        # CLI subcommands
+        cli()
+    else:
+        # Main generation command
+        main()

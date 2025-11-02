@@ -1,0 +1,82 @@
+# Millwork Drafter - Default Configuration
+# Based on memory-banks/millwork_spec_memory_bank.md parametric system
+
+# Drawing scale and display settings
+SCALE_PLAN: 0.25  # 1/4" = 1'-0" scale
+
+# Standard millwork dimensions (inches)
+COUNTER_HEIGHT: 36.0
+BASE_DEPTH: 24.0
+WALL_CAB_DEPTH: 12.0
+
+# Edge treatment default
+EDGE_RULE: "MATCH_FACE"
+
+# ADA compliance settings
+ADA:
+  KNEE_CLEAR: "27\" H x 30\" W x 17\" D"
+  TOE_CLEAR: "9\" H x 6\" D"
+  COUNTER_RANGE: [28.0, 34.0]  # min and max counter height in inches
+  CLEAR_WIDTHS: 32.0  # minimum clear width in inches
+
+# Code compliance basis
+CODE:
+  BASIS: "ADA 2010"
+
+# Tolerances for validation and display
+TOLERANCES:
+  LENGTH_SUM: 0.125  # tolerance for module width sum vs total length (inches)
+  LENGTH_ROUNDING: 2  # decimal places for dimension display
+
+# PDF output settings
+PDF:
+  SIZE: "letter"  # letter, tabloid, ANSI-A, ANSI-B, ANSI-C, ANSI-D
+  MARGINS: [0.5, 0.5, 0.5, 0.5]  # top, right, bottom, left margins (inches)
+
+# Hardware defaults
+HW:
+  DEFAULTS:
+    HINGE: "BLUM-110"
+    PULL: "SS-128"
+    SLIDE: "BLUM-563"
+
+# Schedule and deliverable settings
+SCHEDULE:
+  FORMAT: "on-sheet"  # "on-sheet" or "csv"
+
+CAD:
+  DELIVERABLES: false  # generate CAD files in addition to PDF
+
+# Valid edge treatment options
+EDGE_RULES:
+  - "MATCH_FACE"
+  - "PVC_EDGE"
+  - "SOLID_LUMBER"
+  - "RADIUS"
+
+# Material code examples (project-specific)
+# These would typically be customized per project
+MATERIAL_CODES:
+  TOPS:
+    - "QTZ-01"  # Quartz - White
+    - "QTZ-02"  # Quartz - Gray
+    - "LAM-01"  # Laminate - White
+    - "LAM-02"  # Laminate - Wood Grain
+  CASEWORK:
+    - "PLM-WHT"  # Painted Maple - White
+    - "PLM-GRY"  # Painted Maple - Gray
+    - "OAK-NAT"  # Red Oak - Natural
+    - "MDF-WHT"  # MDF - White Paint
+
+# Standard module widths (inches)
+STANDARD_MODULE_WIDTHS:
+  - 12
+  - 15
+  - 18
+  - 21
+  - 24
+  - 30
+  - 33
+  - 36
+  - 42
+  - 48

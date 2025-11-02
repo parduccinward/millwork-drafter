@@ -1,0 +1,4 @@
+room_id,total_length_in,num_modules,module_widths,material_top,material_casework,left_filler_in,right_filler_in,has_sink,counter_height_in
+KITCHEN-01,144.0,4,"[36,30,36,42]",QTZ-01,PLM-WHT,0.0,0.0,true,36.0
+BATH-01,72.0,2,"[36,36]",LAM-01,PLM-WHT,0.0,0.0,false,34.0
+OFFICE-01,96.0,3,"[24,48,24]",LAM-02,OAK-NAT,0.0,0.0,false,30.0
