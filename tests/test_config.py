@@ -147,6 +147,188 @@ class TestConfigLoader:
         hash2 = config_loader.get_config_hash(modified_config)
         
         assert hash1 != hash2
+    
+    def test_load_empty_yaml_file(self, config_loader):
+        """Test loading YAML file that contains None."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write("# Empty file with just comments\n")
+            empty_file = Path(f.name)
+        
+        try:
+            config_dict = config_loader.load_config(str(empty_file))
+            # Should load defaults when file is empty
+            assert isinstance(config_dict, dict)
+        finally:
+            empty_file.unlink()
+    
+    def test_validate_config_multiple_errors(self, config_loader):
+        """Test validation with multiple errors to trigger error message joining."""
+        invalid_config = {
+            "SCALE_PLAN": -1.0,  # Invalid: negative
+            "COUNTER_HEIGHT": "not_a_number",  # Invalid: not numeric
+            "ADA": {
+                "COUNTER_RANGE": [35.0, 30.0]  # Invalid: wrong order
+            },
+            "PDF": {
+                "SIZE": "invalid_size"  # Invalid: not in allowed list
+            }
+        }
+        
+        # Create a temporary file with invalid config to test the error path
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump(invalid_config, f)
+            invalid_file = Path(f.name)
+        
+        try:
+            with pytest.raises(ValueError, match="Configuration validation failed"):
+                config_loader.load_config(str(invalid_file))
+        finally:
+            invalid_file.unlink()
+    
+    def test_validate_counter_height_invalid(self, config_loader):
+        """Test validation of COUNTER_HEIGHT with invalid values."""
+        # Test negative value
+        result = config_loader.validate_config({"COUNTER_HEIGHT": -10.0})
+        assert not result.is_valid
+        assert any(err.field == "COUNTER_HEIGHT" for err in result.errors)
+        
+        # Test non-numeric value
+        result = config_loader.validate_config({"COUNTER_HEIGHT": "not_a_number"})
+        assert not result.is_valid
+        assert any(err.field == "COUNTER_HEIGHT" for err in result.errors)
+    
+    def test_validate_base_depth_invalid(self, config_loader):
+        """Test validation of BASE_DEPTH with invalid values."""
+        # Test negative value
+        result = config_loader.validate_config({"BASE_DEPTH": -5.0})
+        assert not result.is_valid
+        assert any(err.field == "BASE_DEPTH" for err in result.errors)
+        
+        # Test non-numeric value
+        result = config_loader.validate_config({"BASE_DEPTH": "invalid"})
+        assert not result.is_valid
+        assert any(err.field == "BASE_DEPTH" for err in result.errors)
+    
+    def test_validate_wall_cab_depth_invalid(self, config_loader):
+        """Test validation of WALL_CAB_DEPTH with invalid values."""
+        # Test negative value
+        result = config_loader.validate_config({"WALL_CAB_DEPTH": 0})
+        assert not result.is_valid
+        assert any(err.field == "WALL_CAB_DEPTH" for err in result.errors)
+        
+        # Test non-numeric value
+        result = config_loader.validate_config({"WALL_CAB_DEPTH": "invalid"})
+        assert not result.is_valid
+        assert any(err.field == "WALL_CAB_DEPTH" for err in result.errors)
+    
+    def test_validate_ada_counter_range_edge_cases(self, config_loader):
+        """Test ADA COUNTER_RANGE validation edge cases."""
+        # Test not a list
+        invalid_config = {
+            "ADA": {
+                "COUNTER_RANGE": "not_a_list"
+            }
+        }
+        result = config_loader.validate_config(invalid_config)
+        assert not result.is_valid
+        assert any(err.field == "ADA.COUNTER_RANGE" for err in result.errors)
+        
+        # Test wrong length (not 2 elements)
+        invalid_config = {
+            "ADA": {
+                "COUNTER_RANGE": [28.0, 34.0, 36.0]  # 3 elements instead of 2
+            }
+        }
+        result = config_loader.validate_config(invalid_config)
+        assert not result.is_valid
+        assert any(err.field == "ADA.COUNTER_RANGE" for err in result.errors)
+        
+        # Test non-numeric values in range
+        invalid_config = {
+            "ADA": {
+                "COUNTER_RANGE": ["28.0", 34.0]  # String instead of number
+            }
+        }
+        result = config_loader.validate_config(invalid_config)
+        assert not result.is_valid
+        assert any(err.field == "ADA.COUNTER_RANGE" for err in result.errors)
+        
+        # Test wrong order (first >= second)
+        invalid_config = {
+            "ADA": {
+                "COUNTER_RANGE": [35.0, 30.0]
+            }
+        }
+        result = config_loader.validate_config(invalid_config)
+        assert not result.is_valid
+        assert any(err.field == "ADA.COUNTER_RANGE" for err in result.errors)
+    
+    def test_validate_pdf_margins_invalid(self, config_loader):
+        """Test PDF MARGINS validation with invalid values."""
+        # Test wrong structure (not 4 values)
+        invalid_config = {
+            "PDF": {
+                "MARGINS": [0.5, 0.5]  # Only 2 values instead of 4
+            }
+        }
+        result = config_loader.validate_config(invalid_config)
+        assert not result.is_valid
+        assert any(err.field == "PDF.MARGINS" for err in result.errors)
+        
+        # Test negative values
+        invalid_config = {
+            "PDF": {
+                "MARGINS": [0.5, -0.5, 0.5, 0.5]  # Negative margin
+            }
+        }
+        result = config_loader.validate_config(invalid_config)
+        assert not result.is_valid
+        assert any(err.field == "PDF.MARGINS" for err in result.errors)
+    
+    def test_validate_tolerances_invalid(self, config_loader):
+        """Test TOLERANCES validation with invalid values."""
+        # Test LENGTH_SUM invalid
+        result = config_loader.validate_config({
+            "TOLERANCES": {
+                "LENGTH_SUM": -0.5  # Negative value
+            }
+        })
+        assert not result.is_valid
+        assert any(err.field == "TOLERANCES.LENGTH_SUM" for err in result.errors)
+        
+        # Test LENGTH_ROUNDING invalid
+        result = config_loader.validate_config({
+            "TOLERANCES": {
+                "LENGTH_ROUNDING": -1  # Negative integer
+            }
+        })
+        assert not result.is_valid
+        assert any(err.field == "TOLERANCES.LENGTH_ROUNDING" for err in result.errors)
+        
+        # Test non-integer LENGTH_ROUNDING
+        result = config_loader.validate_config({
+            "TOLERANCES": {
+                "LENGTH_ROUNDING": 2.5  # Float instead of int
+            }
+        })
+        assert not result.is_valid
+        assert any(err.field == "TOLERANCES.LENGTH_ROUNDING" for err in result.errors)
+    
+    def test_validate_edge_rules_invalid(self, config_loader):
+        """Test EDGE_RULES validation with invalid values."""
+        # Test non-list value
+        result = config_loader.validate_config({
+            "EDGE_RULES": "not_a_list"
+        })
+        assert not result.is_valid
+        assert any(err.field == "EDGE_RULES" for err in result.errors)
+        
+        # Test list with non-string values
+        result = config_loader.validate_config({
+            "EDGE_RULES": ["MATCH_FACE", 123, "EDGE_BAND"]  # Number in list
+        })
+        assert not result.is_valid
+        assert any(err.field == "EDGE_RULES" for err in result.errors)
 
 
 class TestConfigIntegration:
@@ -186,3 +368,30 @@ class TestConfigIntegration:
             
         finally:
             config_file.unlink()  # Clean up
+    
+    def test_save_config_to_yaml(self, sample_millwork_config):
+        """Test saving configuration to YAML file."""
+        from src.core.config import save_config_to_yaml
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            output_file = Path(f.name)
+        
+        try:
+            # Save config to file
+            save_config_to_yaml(sample_millwork_config, str(output_file))
+            
+            # Verify file was created and contains valid YAML
+            assert output_file.exists()
+            
+            with open(output_file, 'r', encoding='utf-8') as f:
+                loaded_data = yaml.safe_load(f)
+            
+            # Verify the data is correct
+            assert loaded_data["SCALE_PLAN"] == sample_millwork_config.scale_plan
+            assert loaded_data["COUNTER_HEIGHT"] == sample_millwork_config.counter_height
+            assert "ADA" in loaded_data
+            assert "PDF" in loaded_data
+            
+        finally:
+            if output_file.exists():
+                output_file.unlink()
