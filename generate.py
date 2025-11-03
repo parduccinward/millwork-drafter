@@ -267,16 +267,81 @@ def main(
             click.echo(f"Error: Failed to compute layouts: {e}", err=True)
             sys.exit(2)
         
-        # TODO: Phase 4 - PDF Rendering (coming next)
-        click.echo("PDF rendering engine coming in Phase 4...")
+        # Phase 4: PDF Rendering - Generate shop drawings
+        if not dry_run:
+            if verbose:
+                click.echo("Generating PDF shop drawings...")
+            
+            try:
+                from src.renderer.pdf_renderer import PDFRenderer
+                from src.renderer.drawing_generator import ShopDrawingGenerator
+                
+                # Initialize PDF renderer with configuration
+                scale = config_dict.get("SCALE_PLAN", 0.25)
+                margins = config_dict.get("PDF", {}).get("MARGINS", [0.5, 0.5, 0.5, 0.5])
+                renderer = PDFRenderer(scale=scale, margins=margins)
+                
+                # Initialize drawing generator
+                drawing_generator = ShopDrawingGenerator(renderer, config_dict)
+                
+                # Generate PDFs for all valid layouts
+                generated_pdfs = []
+                pdf_errors = 0
+                
+                for layout in computed_layouts:
+                    try:
+                        if verbose:
+                            click.echo(f"  Generating PDF for {layout.room_id}...")
+                        
+                        pdf_path = drawing_generator.generate_shop_drawing(layout, output)
+                        generated_pdfs.append(pdf_path)
+                        
+                        if verbose:
+                            click.echo(f"    ✓ PDF generated: {pdf_path}")
+                    
+                    except Exception as e:
+                        pdf_errors += 1
+                        click.echo(f"Error generating PDF for {layout.room_id}: {e}", err=True)
+                        if verbose:
+                            import traceback
+                            traceback.print_exc()
+                
+                # Report PDF generation results
+                successful_pdfs = len(generated_pdfs)
+                if verbose or pdf_errors > 0:
+                    click.echo(f"PDF Generation Summary:")
+                    click.echo(f"  Total layouts: {len(computed_layouts)}")
+                    click.echo(f"  Successful PDFs: {successful_pdfs}")
+                    click.echo(f"  Failed PDFs: {pdf_errors}")
+                    if pdf_errors > 0:
+                        click.echo(f"  Success rate: {successful_pdfs/len(computed_layouts)*100:.1f}%")
+                
+                if pdf_errors > 0:
+                    click.echo(f"Warning: {pdf_errors} PDFs failed to generate.", err=True)
+                    if strict:
+                        click.echo("Strict mode: Stopping due to PDF generation failures.", err=True)
+                        sys.exit(1)
+                
+            except ImportError as e:
+                click.echo(f"Error: Missing PDF renderer module: {e}", err=True)
+                sys.exit(2)
+            except Exception as e:
+                click.echo(f"Error: Failed to generate PDFs: {e}", err=True)
+                sys.exit(2)
         
         # Success message
         click.echo(f"✓ Configuration loaded and validated")
         click.echo(f"✓ CSV data parsed and validated: {len(valid_rooms)} valid rooms")
         click.echo(f"✓ Geometric layouts computed: {successful_layouts} successful layouts")
+        if not dry_run:
+            click.echo(f"✓ PDF shop drawings generated: {len(generated_pdfs)} files")
         click.echo(f"✓ Output directory prepared: {output}")
         click.echo(f"✓ Error reports written to: {output}/logs/")
-        click.echo("Phase 3 implementation complete! Ready for Phase 4 (PDF Rendering).")
+        
+        if dry_run:
+            click.echo("Dry run complete - no PDFs generated.")
+        else:
+            click.echo("Phase 4 implementation complete! Shop drawings ready for review.")
         
     except KeyboardInterrupt:
         click.echo("\nOperation cancelled by user.", err=True)
