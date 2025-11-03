@@ -6,9 +6,12 @@ components, enabling the DXF-ready architecture through the adapter pattern.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
 from enum import Enum
+
+if TYPE_CHECKING:
+    from ..parser.schema import ParsedRoomData
 
 
 class RenderStyle(Enum):
@@ -245,28 +248,112 @@ class ADAElement(LayoutElement):
         self.code_basis = code_basis
 
 
+@dataclass
+class ModuleLayout:
+    """Geometric layout of a single cabinet module."""
+    index: int              # Module number (0-based)
+    x: float               # Left edge x-coordinate (inches)
+    y: float               # Bottom edge y-coordinate (inches)
+    width: float           # Module width (inches)
+    height: float          # Module height (inches, from config)
+    depth: float           # Module depth (inches, from config)
+    material_code: str     # Material code for this module
+
+
+@dataclass
+class FillerLayout:
+    """Geometric layout of a filler strip."""
+    side: str              # "left" or "right"
+    x: float               # Left edge x-coordinate (inches)
+    y: float               # Bottom edge y-coordinate (inches)
+    width: float           # Filler width (inches)
+    height: float          # Filler height (inches, matches modules)
+    depth: float           # Filler depth (inches, matches modules)
+
+
+@dataclass
+class CountertopLayout:
+    """Geometric layout of countertop surface."""
+    x: float               # Left edge x-coordinate (inches)
+    y: float               # Bottom edge y-coordinate (inches)
+    width: float           # Total countertop width (inches)
+    depth: float           # Countertop depth (inches, from config)
+    height: float          # Countertop height (inches, from config)
+    material_code: str     # Top material code
+
+
+@dataclass
+class ADALayout:
+    """ADA compliance clearance box layout."""
+    knee_clear_box: Rectangle      # Knee clearance rectangle
+    toe_clear_box: Rectangle       # Toe clearance rectangle
+    approach_width: float          # Required approach width
+    counter_height: float          # Counter height for compliance
+    code_basis: str               # Code basis (e.g., "ADA 2010")
+
+
+@dataclass
+class LayoutMetadata:
+    """Metadata for layout computation and audit trails."""
+    room_id: str
+    timestamp: str
+    config_sha256: str
+    layout_version: str = "1.0"
+    computation_time_ms: Optional[float] = None
+    tolerance_used: Optional[float] = None
+
+
+@dataclass
+class LayoutResult:
+    """Complete geometric layout for a room."""
+    room_id: str
+    modules: List[ModuleLayout]
+    fillers: List[FillerLayout]
+    countertop: CountertopLayout
+    ada_layout: Optional[ADALayout]
+    total_width: float
+    total_depth: float
+    bounding_box: Rectangle
+    metadata: LayoutMetadata
+    validation_result: ValidationResult
+
+
 class ILayoutEngine(ABC):
     """
-    Abstract interface for layout computation.
+    Abstract interface for parametric layout computation.
     
-    Computes geometric layouts from CSV data and configuration,
-    generating elements for rendering.
+    Transforms validated room data from the parser into precise geometric 
+    layouts ready for rendering into shop drawings.
     """
     
     @abstractmethod
-    def compute_layout(self, room_data: Dict[str, Any], 
-                      config: Dict[str, Any]) -> List[LayoutElement]:
+    def compute_layout(self, room_data: 'ParsedRoomData', 
+                      config: Dict[str, Any]) -> LayoutResult:
         """
-        Compute layout elements from room data and configuration.
+        Compute complete geometric layout for a room specification.
         
-        Returns a list of layout elements ready for rendering.
+        Args:
+            room_data: Validated room data from CSV parser
+            config: Configuration dictionary with parameters
+            
+        Returns:
+            LayoutResult with complete geometric layout
         """
         pass
     
     @abstractmethod
-    def validate_layout(self, elements: List[LayoutElement],
-                       config: Dict[str, Any]) -> ValidationResult:
-        """Validate computed layout for consistency and constraints."""
+    def validate_geometry(self, layout: LayoutResult, 
+                         tolerances: Dict[str, float]) -> ValidationResult:
+        """
+        Validate computed geometry against tolerances and constraints.
+        
+        Args:
+            layout: Computed layout result
+            tolerances: Tolerance specifications from config
+            
+        Returns:
+            ValidationResult with geometric validation status
+        """
         pass
 
 

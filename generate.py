@@ -197,15 +197,86 @@ def main(
             click.echo("No PDFs were generated.")
             return
         
-        # TODO: Implement layout engine and PDF generation (Phase 3-4)
-        click.echo("Layout engine and PDF generation coming in Phase 3-4...")
+        # Phase 3: Layout Engine - Compute geometric layouts
+        if verbose:
+            click.echo("Computing geometric layouts...")
+        
+        try:
+            from src.layout import ParametricLayoutEngine
+            
+            # Initialize layout engine
+            layout_engine = ParametricLayoutEngine(config_dict)
+            
+            # Compute layouts for all valid rooms
+            computed_layouts = []
+            layout_errors = 0
+            
+            for room_data in valid_rooms:
+                try:
+                    if verbose:
+                        click.echo(f"  Computing layout for {room_data.room_id}...")
+                    
+                    layout_result = layout_engine.compute_layout(room_data, config_dict)
+                    computed_layouts.append(layout_result)
+                    
+                    # Check for layout validation errors
+                    if not layout_result.validation_result.is_valid:
+                        layout_errors += 1
+                        if verbose:
+                            click.echo(f"    Warning: Layout validation failed for {room_data.room_id}")
+                            for error in layout_result.validation_result.errors:
+                                click.echo(f"      {error.field}: {error.message}")
+                    
+                    elif verbose:
+                        click.echo(f"    ✓ Layout computed: {layout_result.total_width:.1f}\" × {layout_result.total_depth:.1f}\"")
+                        click.echo(f"      Modules: {len(layout_result.modules)}, Fillers: {len(layout_result.fillers)}")
+                        if layout_result.ada_layout:
+                            click.echo(f"      ADA compliance: {layout_result.ada_layout.code_basis}")
+                
+                except Exception as e:
+                    layout_errors += 1
+                    click.echo(f"Error computing layout for {room_data.room_id}: {e}", err=True)
+                    if verbose:
+                        import traceback
+                        traceback.print_exc()
+            
+            # Report layout computation results
+            successful_layouts = len(computed_layouts) - layout_errors
+            if verbose or layout_errors > 0:
+                click.echo(f"Layout Computation Summary:")
+                click.echo(f"  Total rooms: {len(valid_rooms)}")
+                click.echo(f"  Successful layouts: {successful_layouts}")
+                click.echo(f"  Failed layouts: {layout_errors}")
+                if layout_errors > 0:
+                    click.echo(f"  Success rate: {successful_layouts/len(valid_rooms)*100:.1f}%")
+            
+            if layout_errors > 0:
+                click.echo(f"Warning: {layout_errors} rooms failed layout computation.", err=True)
+                if strict:
+                    click.echo("Strict mode: Stopping due to layout failures.", err=True)
+                    sys.exit(1)
+            
+            if len(computed_layouts) == 0:
+                click.echo("Error: No valid layouts to render.", err=True)
+                sys.exit(1)
+            
+        except ImportError as e:
+            click.echo(f"Error: Missing layout engine module: {e}", err=True)
+            sys.exit(2)
+        except Exception as e:
+            click.echo(f"Error: Failed to compute layouts: {e}", err=True)
+            sys.exit(2)
+        
+        # TODO: Phase 4 - PDF Rendering (coming next)
+        click.echo("PDF rendering engine coming in Phase 4...")
         
         # Success message
         click.echo(f"✓ Configuration loaded and validated")
         click.echo(f"✓ CSV data parsed and validated: {len(valid_rooms)} valid rooms")
+        click.echo(f"✓ Geometric layouts computed: {successful_layouts} successful layouts")
         click.echo(f"✓ Output directory prepared: {output}")
         click.echo(f"✓ Error reports written to: {output}/logs/")
-        click.echo("Phase 2 implementation complete! Ready for Phase 3 (Layout Engine).")
+        click.echo("Phase 3 implementation complete! Ready for Phase 4 (PDF Rendering).")
         
     except KeyboardInterrupt:
         click.echo("\nOperation cancelled by user.", err=True)
