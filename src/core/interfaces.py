@@ -119,6 +119,7 @@ class ValidationError:
     message: str
     value: Any
     row_id: Optional[str] = None
+    row_number: Optional[int] = None
     error_type: str = "validation"
 
 
@@ -130,15 +131,22 @@ class ValidationResult:
     warnings: List[ValidationError]
     
     def add_error(self, field: str, message: str, value: Any, 
-                  row_id: Optional[str] = None) -> None:
+                  row_id: Optional[str] = None, row_number: Optional[int] = None) -> None:
         """Add a validation error."""
-        self.errors.append(ValidationError(field, message, value, row_id, "error"))
+        self.errors.append(ValidationError(field, message, value, row_id, row_number, "error"))
         self.is_valid = False
     
     def add_warning(self, field: str, message: str, value: Any,
-                   row_id: Optional[str] = None) -> None:
+                   row_id: Optional[str] = None, row_number: Optional[int] = None) -> None:
         """Add a validation warning."""
-        self.warnings.append(ValidationError(field, message, value, row_id, "warning"))
+        self.warnings.append(ValidationError(field, message, value, row_id, row_number, "warning"))
+    
+    def merge(self, other: 'ValidationResult') -> None:
+        """Merge another validation result into this one."""
+        self.errors.extend(other.errors)
+        self.warnings.extend(other.warnings)
+        if not other.is_valid:
+            self.is_valid = False
 
 
 class IValidator(ABC):

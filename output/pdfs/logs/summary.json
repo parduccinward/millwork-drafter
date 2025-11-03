@@ -1,0 +1,12 @@
+{
+  "input_file": "input/sample_rooms.csv",
+  "config_file": "config/default.yaml",
+  "validation_summary": {
+    "total_rows": 3,
+    "successful_rows": 3,
+    "failed_rows": 0,
+    "success_rate": 1.0
+  },
+  "error_breakdown": {},
+  "validation_errors": []
+}

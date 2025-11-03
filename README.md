@@ -26,7 +26,18 @@ Millwork Drafter implements a professional shop drawing generation system based 
 - ✅ Testing infrastructure with pytest
 - ✅ Default configuration with industry standards
 
-**Next Phase**: Data Pipeline & Validation (Phase 2)
+**Phase 2 Complete**: Data Pipeline & Validation
+- ✅ CSV schema definition with comprehensive field validation
+- ✅ Robust CSV parser with type checking (string, numeric, boolean, JSON arrays)
+- ✅ Multi-level validation system:
+  - Type & Domain validation (field types, ranges, patterns)
+  - Geometric Consistency validation (module sums, tolerances, ADA compliance)
+  - Referential Integrity validation (config references, material codes)
+- ✅ Error reporting system with JSON logs per room and batch summaries
+- ✅ Fail-fast processing with detailed validation feedback
+- ✅ Integration with CLI pipeline and dry-run support
+
+**Next Phase**: Core Layout Engine (Phase 3)
 
 ## Quick Start
 
@@ -50,6 +61,12 @@ python generate.py --input input/rooms.csv
 # Use custom configuration
 python generate.py --input input/rooms.csv --config config/project.yaml
 
+# Validate only (dry run)
+python generate.py --input input/rooms.csv --dry-run --verbose
+
+# Strict validation mode
+python generate.py --input input/rooms.csv --strict
+
 # Validate configuration only
 python generate.py validate-config config/project.yaml
 
@@ -57,6 +74,51 @@ python generate.py validate-config config/project.yaml
 python generate.py init-config --output config/my_project.yaml
 ```
 
+### CSV Input Format
+
+Room specifications use a simple CSV format with comprehensive validation:
+
+```csv
+room_id,total_length_in,num_modules,module_widths,material_top,material_casework,has_sink,counter_height_in
+KITCHEN-01,144.0,4,"[36,30,36,42]",QTZ-01,PLM-WHT,true,36.0
+BATH-01,72.0,2,"[36,36]",LAM-01,PLM-WHT,false,34.0
+OFFICE-01,96.0,3,"[24,48,24]",LAM-02,OAK-NAT,false,30.0
+```
+
+**Required Fields:**
+- `room_id`: Unique identifier (e.g., "KITCHEN-01")
+- `total_length_in`: Total length in inches (positive number)
+- `num_modules`: Number of cabinet modules (positive integer)
+- `module_widths`: JSON array of module widths (e.g., "[36,30,36,42]")
+- `material_top`: Top material code
+- `material_casework`: Casework material code
+
+**Optional Fields:**
+- `left_filler_in`, `right_filler_in`: Filler widths in inches
+- `has_sink`, `has_ref`: Boolean flags for fixtures
+- `counter_height_in`: Custom counter height
+- `edge_rule`: Edge treatment rule
+- `hardware_defaults`: Hardware specification key
+- `notes`, `references`: Documentation fields
+
+### Validation Features
+
+Phase 2 implements comprehensive validation:
+
+- **Type Validation**: Data type checking with proper error messages
+- **Domain Validation**: Range checks, pattern matching, enum validation
+- **Geometric Consistency**: Module width sums vs. total length within tolerance
+- **ADA Compliance**: Counter height and accessibility checking
+- **Referential Integrity**: Configuration key validation
+- **Error Reporting**: JSON logs per room plus batch summaries
+
+Example validation output:
+```bash
+Validation Summary:
+  Total rooms: 5
+  Valid rooms: 4
+  Failed rooms: 1
+  Success rate: 80.0%
 ### Configuration
 
 The system uses YAML configuration files with parametric `[CFG.*]` placeholders:
@@ -73,20 +135,24 @@ ADA:
   TOE_CLEAR: "9\" H x 6\" D"
   COUNTER_RANGE: [28.0, 34.0]
 
+# Edge treatment options
+EDGE_RULES: ["MATCH_FACE", "PVC_EDGE", "SOLID_LUMBER", "RADIUS"]
+
+# Hardware specifications
+HW:
+  DEFAULTS:
+    HINGE: "BLUM-110"
+    PULL: "SS-128"
+    SLIDE: "BLUM-563"
+
+# Validation tolerances
+TOLERANCES:
+  LENGTH_SUM: 0.125       # 1/8" tolerance for length calculations
+
 # Output settings
 PDF:
   SIZE: "letter"
   MARGINS: [0.5, 0.5, 0.5, 0.5]
-```
-
-### CSV Input Format
-
-Room specifications use a simple CSV format:
-
-```csv
-room_id,total_length_in,num_modules,module_widths,material_top,material_casework
-KITCHEN-01,144.0,4,"[36,30,36,42]",QTZ-01,PLM-WHT
-BATH-01,72.0,2,"[36,36]",LAM-01,PLM-WHT
 ```
 
 ## Development

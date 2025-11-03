@@ -1,0 +1,13 @@
+{
+  "room_id": "KITCHEN-01",
+  "validation_status": "warning",
+  "errors": [],
+  "warnings": [
+    {
+      "field": "counter_height_in",
+      "message": "Counter height 36.0\" outside ADA range [28.0\", 34.0\"]",
+      "value": 36.0,
+      "row_number": null
+    }
+  ]
+}

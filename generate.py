@@ -128,21 +128,84 @@ def main(
         if verbose:
             click.echo(f"Input CSV validated: {input}")
         
+        # Parse and validate CSV data
+        if verbose:
+            click.echo("Parsing and validating CSV data...")
+        
+        try:
+            from src.parser import CSVParser, RoomValidator, ErrorReporter
+            
+            # Initialize parser and validator
+            csv_parser = CSVParser()
+            validator = RoomValidator(strict_mode=strict)
+            error_reporter = ErrorReporter(output)
+            
+            # Parse CSV file
+            parsed_rooms, parse_result = csv_parser.parse_file(input)
+            
+            if not parse_result.is_valid:
+                click.echo(f"Error: CSV parsing failed with {len(parse_result.errors)} errors:", err=True)
+                for error in parse_result.errors[:5]:  # Show first 5 errors
+                    click.echo(f"  {error.field}: {error.message}", err=True)
+                if len(parse_result.errors) > 5:
+                    click.echo(f"  ... and {len(parse_result.errors) - 5} more errors", err=True)
+                sys.exit(1)
+            
+            if verbose:
+                click.echo(f"Successfully parsed {len(parsed_rooms)} rooms from CSV")
+            
+            # Validate parsed data
+            valid_rooms, batch_summary = validator.validate_batch(parsed_rooms, config_dict)
+            
+            # Write error reports
+            for room_data in parsed_rooms:
+                validation_result = validator.validate_room_data(room_data, config_dict)
+                if not validation_result.is_valid or validation_result.warnings:
+                    error_reporter.write_room_errors(room_data.room_id, validation_result)
+            
+            error_reporter.write_batch_summary(batch_summary, str(input), str(config))
+            
+            # Report validation results
+            if verbose or batch_summary.failed_rows > 0:
+                click.echo(f"Validation Summary:")
+                click.echo(f"  Total rooms: {batch_summary.total_rows}")
+                click.echo(f"  Valid rooms: {batch_summary.successful_rows}")
+                click.echo(f"  Failed rooms: {batch_summary.failed_rows}")
+                if batch_summary.failed_rows > 0:
+                    click.echo(f"  Success rate: {batch_summary.successful_rows/batch_summary.total_rows*100:.1f}%")
+            
+            if batch_summary.failed_rows > 0:
+                click.echo(f"Warning: {batch_summary.failed_rows} rooms failed validation. See logs in {output}/logs/", err=True)
+                if strict:
+                    click.echo("Strict mode: Stopping due to validation failures.", err=True)
+                    sys.exit(1)
+            
+            if len(valid_rooms) == 0:
+                click.echo("Error: No valid rooms to process.", err=True)
+                sys.exit(1)
+            
+        except ImportError as e:
+            click.echo(f"Error: Missing parser module: {e}", err=True)
+            sys.exit(2)
+        except Exception as e:
+            click.echo(f"Error: Failed to parse or validate CSV: {e}", err=True)
+            sys.exit(2)
+        
         if dry_run:
-            click.echo("Dry run mode: Configuration and input validation completed successfully.")
+            click.echo("Dry run mode: Configuration and CSV validation completed successfully.")
+            click.echo(f"Ready to process {len(valid_rooms)} valid rooms.")
             click.echo("No PDFs were generated.")
             return
         
-        # TODO: Implement the actual pipeline
-        # This will be implemented in Phase 2-4
-        click.echo("Pipeline implementation coming in Phase 2-4...")
-        click.echo("For now, validation completed successfully.")
+        # TODO: Implement layout engine and PDF generation (Phase 3-4)
+        click.echo("Layout engine and PDF generation coming in Phase 3-4...")
         
-        # Placeholder success message
+        # Success message
         click.echo(f"✓ Configuration loaded and validated")
-        click.echo(f"✓ Input CSV validated: {input}")
+        click.echo(f"✓ CSV data parsed and validated: {len(valid_rooms)} valid rooms")
         click.echo(f"✓ Output directory prepared: {output}")
-        click.echo("Ready for pipeline implementation!")
+        click.echo(f"✓ Error reports written to: {output}/logs/")
+        click.echo("Phase 2 implementation complete! Ready for Phase 3 (Layout Engine).")
         
     except KeyboardInterrupt:
         click.echo("\nOperation cancelled by user.", err=True)
